@@ -1,17 +1,15 @@
-import { LOAN_INTEREST_RATES } from '@/utils/constants'
+import { LOAN_INTEREST_RATES, PROCESSING_FEE_MIN, PROCESSING_FEE_MAX, PROCESSING_FEE_RATE } from '@/utils/constants'
 import type { LoanType } from '@/types'
 
 export function calculateEMI(
-  principal: number | string,
+  principal: number,
   annualRatePercent: number,
-  tenureMonths: number | string
+  tenureMonths: number,
 ): number {
-  const p = Number(principal)
-  const n = Number(tenureMonths)
-  if (!p || !annualRatePercent || !n || p <= 0 || n <= 0) return 0
+  if (!principal || !annualRatePercent || !tenureMonths || principal <= 0 || tenureMonths <= 0) return 0
   const r = annualRatePercent / 12 / 100
-  if (r === 0) return p / n
-  return (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+  if (r === 0) return principal / tenureMonths
+  return (principal * r * Math.pow(1 + r, tenureMonths)) / (Math.pow(1 + r, tenureMonths) - 1)
 }
 
 export function calculateTotalPayable(emi: number, tenureMonths: number): number {
@@ -22,9 +20,17 @@ export function calculateTotalInterest(principal: number, totalPayable: number):
   return Math.max(0, totalPayable - principal)
 }
 
+export function calculateCostOfBorrowing(emi: number, tenureMonths: number, principal: number): number {
+  return Math.max(0, emi * tenureMonths - principal)
+}
+
+export function calculateProcessingFee(loanAmount: number): number {
+  return Math.min(Math.max(loanAmount * PROCESSING_FEE_RATE, PROCESSING_FEE_MIN), PROCESSING_FEE_MAX)
+}
+
 export function getInterestRate(loanType: LoanType | ''): number {
   if (!loanType) return 0
-  return LOAN_INTEREST_RATES[loanType] ?? 0
+  return LOAN_INTEREST_RATES[loanType as LoanType] ?? 0
 }
 
 export function calculateAge(dateOfBirth: string): number {
@@ -47,5 +53,7 @@ export function maxEligibleLoan(netIncome: number, annualRatePercent: number, te
   const r = annualRatePercent / 12 / 100
   const maxEmi = netIncome * 0.5
   if (r === 0) return maxEmi * tenureMonths
-  return Math.floor((maxEmi * (Math.pow(1 + r, tenureMonths) - 1)) / (r * Math.pow(1 + r, tenureMonths)))
+  return Math.floor(
+    (maxEmi * (Math.pow(1 + r, tenureMonths) - 1)) / (r * Math.pow(1 + r, tenureMonths)),
+  )
 }

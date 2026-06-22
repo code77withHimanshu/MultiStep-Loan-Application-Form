@@ -1,15 +1,23 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useFormStore, initialFormData } from '@/store/formStore'
+import { useFormStore } from '@/store/formStore'
 
 function resetStore() {
   useFormStore.setState({
     currentStep: 0,
-    formData: initialFormData,
+    formData: {
+      loanBasicInfo: {},
+      personalInfo: {},
+      kycInfo: {},
+      addressInfo: {},
+      employmentInfo: {},
+      coApplicantInfo: {},
+      documentsAndSignature: {},
+      consentInfo: {},
+    },
     submitted: false,
     submissionResult: null,
-    eligibility: null,
-    savedAt: null,
     hasSavedData: false,
+    savedLoanType: null,
   })
 }
 
@@ -20,7 +28,7 @@ describe('formStore navigation', () => {
     expect(useFormStore.getState().currentStep).toBe(0)
   })
 
-  it('increments step on nextStep', () => {
+  it('increments step on nextStep (step 6 not active)', () => {
     useFormStore.getState().nextStep()
     expect(useFormStore.getState().currentStep).toBe(1)
   })
@@ -37,9 +45,9 @@ describe('formStore navigation', () => {
   })
 
   it('does not exceed TOTAL_STEPS - 1', () => {
-    useFormStore.setState({ currentStep: 6 })
+    useFormStore.setState({ currentStep: 7 })
     useFormStore.getState().nextStep()
-    expect(useFormStore.getState().currentStep).toBe(6)
+    expect(useFormStore.getState().currentStep).toBe(7)
   })
 
   it('goToStep sets exact step', () => {
@@ -51,7 +59,66 @@ describe('formStore navigation', () => {
     useFormStore.getState().goToStep(-1)
     expect(useFormStore.getState().currentStep).toBe(0)
     useFormStore.getState().goToStep(100)
-    expect(useFormStore.getState().currentStep).toBe(6)
+    expect(useFormStore.getState().currentStep).toBe(7)
+  })
+})
+
+describe('formStore isStep6Active', () => {
+  beforeEach(resetStore)
+
+  it('returns true for home loan regardless of amount', () => {
+    useFormStore.setState({
+      formData: {
+        loanBasicInfo: { loanType: 'home', loanAmount: 500000 },
+        personalInfo: {}, kycInfo: {}, addressInfo: {}, employmentInfo: {},
+        coApplicantInfo: {}, documentsAndSignature: {}, consentInfo: {},
+      },
+    })
+    expect(useFormStore.getState().isStep6Active()).toBe(true)
+  })
+
+  it('returns false for personal loan at or below ₹5,00,000', () => {
+    useFormStore.setState({
+      formData: {
+        loanBasicInfo: { loanType: 'personal', loanAmount: 500000 },
+        personalInfo: {}, kycInfo: {}, addressInfo: {}, employmentInfo: {},
+        coApplicantInfo: {}, documentsAndSignature: {}, consentInfo: {},
+      },
+    })
+    expect(useFormStore.getState().isStep6Active()).toBe(false)
+  })
+
+  it('returns true for personal loan above ₹5,00,000', () => {
+    useFormStore.setState({
+      formData: {
+        loanBasicInfo: { loanType: 'personal', loanAmount: 500001 },
+        personalInfo: {}, kycInfo: {}, addressInfo: {}, employmentInfo: {},
+        coApplicantInfo: {}, documentsAndSignature: {}, consentInfo: {},
+      },
+    })
+    expect(useFormStore.getState().isStep6Active()).toBe(true)
+  })
+
+  it('returns false for business loan at or below ₹20,00,000', () => {
+    useFormStore.setState({
+      formData: {
+        loanBasicInfo: { loanType: 'business', loanAmount: 2000000 },
+        personalInfo: {}, kycInfo: {}, addressInfo: {}, employmentInfo: {},
+        coApplicantInfo: {}, documentsAndSignature: {}, consentInfo: {},
+      },
+    })
+    expect(useFormStore.getState().isStep6Active()).toBe(false)
+  })
+
+  it('returns true for business loan above ₹20,00,000', () => {
+    useFormStore.setState({
+      formData: {
+        loanBasicInfo: { loanType: 'business', loanAmount: 2000001 },
+        personalInfo: {}, kycInfo: {}, addressInfo: {}, employmentInfo: {},
+        coApplicantInfo: {}, documentsAndSignature: {}, consentInfo: {},
+      },
+    })
+    expect(useFormStore.getState().isStep6Active()).toBe(true)
   })
 })
 
@@ -59,34 +126,23 @@ describe('formStore updateFormData', () => {
   beforeEach(resetStore)
 
   it('updates personalInfo', () => {
-    useFormStore.getState().updateFormData('personalInfo', { firstName: 'Priya', lastName: 'Singh' })
+    useFormStore.getState().updateFormData('personalInfo', { fullName: 'Priya Singh' })
     const { formData } = useFormStore.getState()
-    expect(formData.personalInfo.firstName).toBe('Priya')
-    expect(formData.personalInfo.lastName).toBe('Singh')
+    expect(formData.personalInfo.fullName).toBe('Priya Singh')
   })
 
   it('merges partial updates', () => {
-    useFormStore.getState().updateFormData('personalInfo', { firstName: 'Rahul' })
-    useFormStore.getState().updateFormData('personalInfo', { lastName: 'Sharma' })
+    useFormStore.getState().updateFormData('personalInfo', { fullName: 'Rahul' })
+    useFormStore.getState().updateFormData('personalInfo', { email: 'rahul@example.com' })
     const { personalInfo } = useFormStore.getState().formData
-    expect(personalInfo.firstName).toBe('Rahul')
-    expect(personalInfo.lastName).toBe('Sharma')
+    expect(personalInfo.fullName).toBe('Rahul')
+    expect(personalInfo.email).toBe('rahul@example.com')
   })
 
-  it('updates loanDetails', () => {
-    useFormStore.getState().updateFormData('loanDetails', { loanType: 'home', loanAmount: '5000000' })
-    expect(useFormStore.getState().formData.loanDetails.loanType).toBe('home')
-    expect(useFormStore.getState().formData.loanDetails.loanAmount).toBe('5000000')
-  })
-
-  it('updates employmentInfo', () => {
-    useFormStore.getState().updateFormData('employmentInfo', { employmentType: 'salaried', monthlyNetIncome: '80000' })
-    expect(useFormStore.getState().formData.employmentInfo.employmentType).toBe('salaried')
-  })
-
-  it('sets savedAt when updating form data', () => {
-    useFormStore.getState().updateFormData('personalInfo', { firstName: 'Test' })
-    expect(useFormStore.getState().savedAt).not.toBeNull()
+  it('updates loanBasicInfo', () => {
+    useFormStore.getState().updateFormData('loanBasicInfo', { loanType: 'home', loanAmount: 5000000 })
+    expect(useFormStore.getState().formData.loanBasicInfo.loanType).toBe('home')
+    expect(useFormStore.getState().formData.loanBasicInfo.loanAmount).toBe(5000000)
   })
 })
 
@@ -101,43 +157,22 @@ describe('formStore submission', () => {
   it('stores submission result', () => {
     const result = {
       applicationId: 'APP123',
-      referenceNumber: 'LN12345678',
+      referenceNumber: 'LS12345678',
       status: 'submitted' as const,
       submittedAt: new Date().toISOString(),
+      loanType: 'personal' as const,
+      loanAmount: 300000,
     }
     useFormStore.getState().setSubmitted(true, result)
-    expect(useFormStore.getState().submissionResult?.referenceNumber).toBe('LN12345678')
+    expect(useFormStore.getState().submissionResult?.referenceNumber).toBe('LS12345678')
   })
 
   it('resets form on resetForm', () => {
-    useFormStore.getState().updateFormData('personalInfo', { firstName: 'Test' })
+    useFormStore.getState().updateFormData('personalInfo', { fullName: 'Test' })
     useFormStore.setState({ currentStep: 3 })
     useFormStore.getState().resetForm()
     expect(useFormStore.getState().currentStep).toBe(0)
-    expect(useFormStore.getState().formData.personalInfo.firstName).toBe('')
+    expect(useFormStore.getState().formData.personalInfo.fullName).toBeUndefined()
     expect(useFormStore.getState().submitted).toBe(false)
-  })
-})
-
-describe('formStore eligibility', () => {
-  beforeEach(resetStore)
-
-  it('sets eligibility result', () => {
-    const result = {
-      eligible: true,
-      verdict: 'approved' as const,
-      creditScore: 750,
-      maxLoanAmount: 3000000,
-      suggestedInterestRate: 8.5,
-      emiToIncomeRatio: 0.3,
-      reasons: ['Good profile'],
-    }
-    useFormStore.getState().setEligibility(result)
-    expect(useFormStore.getState().eligibility?.verdict).toBe('approved')
-  })
-
-  it('clears eligibility on null', () => {
-    useFormStore.getState().setEligibility(null)
-    expect(useFormStore.getState().eligibility).toBeNull()
   })
 })

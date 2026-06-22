@@ -1,60 +1,20 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
-import type { ApplicationFormData, EligibilityResult, SubmissionResponse } from '@/types'
-import { STORAGE_KEY, TOTAL_STEPS } from '@/utils/constants'
+import type {
+  ApplicationFormData,
+  LoanType,
+  SubmissionResponse,
+} from '@/types'
+import { TOTAL_STEPS, CO_APPLICANT_THRESHOLDS, STORAGE_KEY_PREFIX } from '@/utils/constants'
 
-export const initialFormData: ApplicationFormData = {
-  personalInfo: {
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    dateOfBirth: '',
-    gender: '',
-    maritalStatus: '',
-    panNumber: '',
-    nationality: 'Indian',
-  },
-  addressInfo: {
-    currentAddressLine1: '',
-    currentAddressLine2: '',
-    currentCity: '',
-    currentState: '',
-    currentZip: '',
-    currentCountry: 'India',
-    sameAsPermanent: false,
-    permanentAddressLine1: '',
-    permanentAddressLine2: '',
-    permanentCity: '',
-    permanentState: '',
-    permanentZip: '',
-    permanentCountry: 'India',
-  },
-  employmentInfo: {
-    employmentType: '',
-    employerName: '',
-    jobTitle: '',
-    monthlyGrossIncome: '',
-    monthlyNetIncome: '',
-    workExperience: '',
-    employmentStartDate: '',
-  },
-  loanDetails: {
-    loanType: '',
-    loanAmount: '',
-    loanPurpose: '',
-    tenure: '',
-    preferredEMIDate: '',
-  },
-  documents: {
-    idProof: null,
-    addressProof: null,
-    incomeProof: null,
-    photo: null,
-  },
-  signature: {
-    dataUrl: null,
-  },
+const initialFormData: ApplicationFormData = {
+  loanBasicInfo: {},
+  personalInfo: {},
+  kycInfo: {},
+  addressInfo: {},
+  employmentInfo: {},
+  coApplicantInfo: {},
+  documentsAndSignature: {},
+  consentInfo: {},
 }
 
 interface FormState {
@@ -62,9 +22,8 @@ interface FormState {
   formData: ApplicationFormData
   submitted: boolean
   submissionResult: SubmissionResponse | null
-  eligibility: EligibilityResult | null
-  savedAt: string | null
   hasSavedData: boolean
+  savedLoanType: LoanType | null
 }
 
 interface FormActions {
@@ -73,12 +32,13 @@ interface FormActions {
   goToStep: (step: number) => void
   updateFormData: <K extends keyof ApplicationFormData>(
     section: K,
-    data: Partial<ApplicationFormData[K]>
+    data: ApplicationFormData[K],
   ) => void
   setSubmitted: (submitted: boolean, result?: SubmissionResponse) => void
-  setEligibility: (result: EligibilityResult | null) => void
   resetForm: () => void
-  acknowledgeResume: () => void
+  setHasSavedData: (hasSaved: boolean, loanType?: LoanType | null) => void
+  isStep6Active: () => boolean
+  getEffectiveTotalSteps: () => number
 }
 
 export type FormStore = FormState & FormActions
@@ -88,75 +48,76 @@ const initialState: FormState = {
   formData: initialFormData,
   submitted: false,
   submissionResult: null,
-  eligibility: null,
-  savedAt: null,
   hasSavedData: false,
+  savedLoanType: null,
 }
 
-export const useFormStore = create<FormStore>()(
-  persist(
-    (set, get) => ({
-      ...initialState,
+export const useFormStore = create<FormStore>()((set, get) => ({
+  ...initialState,
 
-      nextStep: () =>
-        set((s) => ({ currentStep: Math.min(s.currentStep + 1, TOTAL_STEPS - 1) })),
-
-      prevStep: () =>
-        set((s) => ({ currentStep: Math.max(s.currentStep - 1, 0) })),
-
-      goToStep: (step: number) =>
-        set({ currentStep: Math.max(0, Math.min(step, TOTAL_STEPS - 1)) }),
-
-      updateFormData: <K extends keyof ApplicationFormData>(
-        section: K,
-        data: Partial<ApplicationFormData[K]>
-      ) =>
-        set((s) => ({
-          formData: {
-            ...s.formData,
-            [section]: { ...s.formData[section], ...data },
-          },
-          savedAt: new Date().toISOString(),
-        })),
-
-      setSubmitted: (submitted: boolean, result?: SubmissionResponse) =>
-        set({ submitted, submissionResult: result ?? null }),
-
-      setEligibility: (result: EligibilityResult | null) =>
-        set({ eligibility: result }),
-
-      resetForm: () => {
-        set({ ...initialState, hasSavedData: false, savedAt: null })
-        try {
-          localStorage.removeItem(STORAGE_KEY)
-        } catch {
-          /* ignore */
-        }
-      },
-
-      acknowledgeResume: () => set({ hasSavedData: false }),
-    }),
-    {
-      name: STORAGE_KEY,
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        currentStep: state.currentStep,
-        formData: {
-          personalInfo: state.formData.personalInfo,
-          addressInfo: state.formData.addressInfo,
-          employmentInfo: state.formData.employmentInfo,
-          loanDetails: state.formData.loanDetails,
-          documents: initialFormData.documents,
-          signature: initialFormData.signature,
-        },
-        savedAt: state.savedAt,
-        hasSavedData: get().currentStep > 0 || Object.values(state.formData.personalInfo).some((v) => v !== ''),
-      }),
-      onRehydrateStorage: () => (state) => {
-        if (state && state.currentStep > 0) {
-          state.hasSavedData = true
-        }
-      },
+  nextStep: () => {
+    const { currentStep, isStep6Active, getEffectiveTotalSteps } = get()
+    const maxStep = getEffectiveTotalSteps() - 1
+    // Skip step index 5 (Co-Applicant, 0-indexed) if not active
+    if (currentStep === 4 && !isStep6Active()) {
+      set({ currentStep: Math.min(6, maxStep) })
+    } else {
+      set({ currentStep: Math.min(currentStep + 1, maxStep) })
     }
-  )
-)
+  },
+
+  prevStep: () => {
+    const { currentStep, isStep6Active } = get()
+    // Skip step index 5 when going back if not active
+    if (currentStep === 6 && !isStep6Active()) {
+      set({ currentStep: Math.max(4, 0) })
+    } else {
+      set({ currentStep: Math.max(currentStep - 1, 0) })
+    }
+  },
+
+  goToStep: (step: number) =>
+    set({ currentStep: Math.max(0, Math.min(step, TOTAL_STEPS - 1)) }),
+
+  updateFormData: <K extends keyof ApplicationFormData>(
+    section: K,
+    data: ApplicationFormData[K],
+  ) =>
+    set((s) => ({
+      formData: {
+        ...s.formData,
+        [section]: { ...s.formData[section], ...data },
+      },
+    })),
+
+  setSubmitted: (submitted: boolean, result?: SubmissionResponse) =>
+    set({ submitted, submissionResult: result ?? null }),
+
+  resetForm: () => {
+    const { formData } = get()
+    const loanType = formData.loanBasicInfo?.loanType
+    if (loanType) {
+      try {
+        localStorage.removeItem(`${STORAGE_KEY_PREFIX}${loanType}`)
+      } catch {
+        /* ignore */
+      }
+    }
+    set({ ...initialState })
+  },
+
+  setHasSavedData: (hasSaved: boolean, loanType?: LoanType | null) =>
+    set({ hasSavedData: hasSaved, savedLoanType: loanType ?? null }),
+
+  isStep6Active: (): boolean => {
+    const { formData } = get()
+    const { loanType, loanAmount } = formData.loanBasicInfo ?? {}
+    if (!loanType || !loanAmount) return false
+    if (loanType === 'home') return true
+    const threshold = CO_APPLICANT_THRESHOLDS[loanType]
+    if (threshold === null) return true
+    return loanAmount > threshold
+  },
+
+  getEffectiveTotalSteps: (): number => TOTAL_STEPS,
+}))

@@ -1,84 +1,140 @@
-export type LoanType = 'home' | 'personal' | 'car' | 'education' | 'business'
-export type EmploymentType = 'salaried' | 'self_employed' | 'business' | 'retired'
-export type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say'
-export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed' | 'separated'
-export type Nationality = 'Indian' | 'NRI' | 'OCI'
-export type EligibilityVerdict = 'approved' | 'conditional' | 'rejected'
+export type LoanType = 'personal' | 'home' | 'business'
+export type EmploymentType = 'salaried' | 'self_employed' | 'business_owner'
+export type Gender = 'male' | 'female' | 'other'
+export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed'
+export type ResidenceType = 'owned' | 'rented' | 'company' | 'family'
+export type CoApplicantRelationship = 'spouse' | 'parent' | 'sibling' | 'business_partner'
+
+export interface LoanBasicInfo {
+  loanType: LoanType
+  loanAmount: number
+  loanTenure: number
+  loanPurpose: string
+  referralCode?: string
+}
 
 export interface PersonalInfo {
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
+  fullName: string
   dateOfBirth: string
-  gender: Gender | ''
-  maritalStatus: MaritalStatus | ''
+  gender: Gender
+  maritalStatus: MaritalStatus
+  fatherName: string
+  motherName: string
+  email: string
+  mobileNumber: string
+  alternateMobile?: string
+}
+
+export interface KYCInfo {
   panNumber: string
-  nationality: Nationality
+  panVerified: boolean
+  aadhaarNumber: string
+  aadhaarVerified: boolean
+  aadhaarConsent: boolean
+  voterId?: string
+  passport?: string
 }
 
 export interface AddressInfo {
   currentAddressLine1: string
-  currentAddressLine2: string
+  currentAddressLine2?: string
+  currentPinCode: string
   currentCity: string
   currentState: string
-  currentZip: string
-  currentCountry: string
+  currentPostOffice?: string
+  currentResidenceType: ResidenceType
+  currentRentAmount?: number
+  yearsAtCurrentAddress: number
   sameAsPermanent: boolean
-  permanentAddressLine1: string
-  permanentAddressLine2: string
-  permanentCity: string
-  permanentState: string
-  permanentZip: string
-  permanentCountry: string
+  permanentAddressLine1?: string
+  permanentAddressLine2?: string
+  permanentPinCode?: string
+  permanentCity?: string
+  permanentState?: string
 }
 
-export interface EmploymentInfo {
-  employmentType: EmploymentType | ''
-  employerName: string
-  jobTitle: string
-  monthlyGrossIncome: string
-  monthlyNetIncome: string
-  workExperience: string
-  employmentStartDate: string
+export interface EmploymentInfoSalaried {
+  employmentType: 'salaried'
+  companyName: string
+  designation: string
+  monthlyNetSalary: number
+  yearsOfExperience: number
 }
 
-export interface LoanDetails {
-  loanType: LoanType | ''
-  loanAmount: string
-  loanPurpose: string
-  tenure: string
-  preferredEMIDate: string
+export interface EmploymentInfoSelfEmployed {
+  employmentType: 'self_employed'
+  businessName: string
+  businessType: string
+  annualTurnover: number
+  yearsInBusiness: number
+  monthlyIncome: number
+  yearsOfExperience: number
 }
 
-export interface Documents {
-  idProof: File | null
-  addressProof: File | null
-  incomeProof: File | null
-  photo: File | null
+export interface EmploymentInfoBusinessOwner {
+  employmentType: 'business_owner'
+  businessName: string
+  businessType: string
+  annualTurnover: number
+  yearsInBusiness: number
+  monthlyIncome: number
+  gstNumber?: string
+  officeAddress?: string
+  yearsOfExperience: number
 }
 
-export interface SignatureData {
-  dataUrl: string | null
+export type EmploymentInfo =
+  | EmploymentInfoSalaried
+  | EmploymentInfoSelfEmployed
+  | EmploymentInfoBusinessOwner
+
+export interface CoApplicantInfo {
+  coApplicantName: string
+  relationship: CoApplicantRelationship
+  coApplicantPAN: string
+  coApplicantPANVerified: boolean
+  coApplicantIncome: number
+  coApplicantConsent: boolean
+  coApplicantSignature?: string
+}
+
+export interface DocumentFile {
+  file: File
+  originalSize: number
+  compressedSize?: number
+  preview?: string
+}
+
+export interface DocumentsAndSignature {
+  panCardCopy?: DocumentFile | null
+  aadhaarFront?: DocumentFile | null
+  aadhaarBack?: DocumentFile | null
+  salarySlips?: DocumentFile[]
+  bankStatements?: DocumentFile | null
+  itrDocuments?: DocumentFile[]
+  propertyDocuments?: DocumentFile | null
+  businessRegistration?: DocumentFile | null
+  gstReturns?: DocumentFile[]
+  photograph?: DocumentFile | null
+  eSignature?: string | null
+}
+
+export interface ConsentInfo {
+  confirmAccuracy: boolean
+  authorizeCreditCheck: boolean
+  agreeTerms: boolean
+  consentCommunications: boolean
 }
 
 export interface ApplicationFormData {
-  personalInfo: PersonalInfo
-  addressInfo: AddressInfo
-  employmentInfo: EmploymentInfo
-  loanDetails: LoanDetails
-  documents: Documents
-  signature: SignatureData
-}
-
-export interface EligibilityResult {
-  eligible: boolean
-  verdict: EligibilityVerdict
-  creditScore: number
-  maxLoanAmount: number
-  suggestedInterestRate: number
-  emiToIncomeRatio: number
-  reasons: string[]
+  loanBasicInfo: Partial<LoanBasicInfo>
+  personalInfo: Partial<PersonalInfo>
+  kycInfo: Partial<KYCInfo>
+  addressInfo: Partial<AddressInfo>
+  employmentInfo: Partial<EmploymentInfo>
+  coApplicantInfo: Partial<CoApplicantInfo>
+  documentsAndSignature: Partial<DocumentsAndSignature>
+  consentInfo: Partial<ConsentInfo>
 }
 
 export interface SubmissionResponse {
@@ -86,35 +142,21 @@ export interface SubmissionResponse {
   referenceNumber: string
   status: 'submitted' | 'under_review'
   submittedAt: string
+  loanType: LoanType
+  loanAmount: number
 }
 
-export interface ApiResponse<T> {
-  success: boolean
-  data?: T
-  error?: string
-  message?: string
+export interface PinCodeEntry {
+  city: string
+  state: string
+  postOffice: string
+}
+
+export interface AutoSaveMetadata {
+  version: string
+  timestamp: number
+  step: number
+  loanType: LoanType | null
 }
 
 export type FormErrors = Record<string, string>
-
-export interface DocumentMeta {
-  name: string
-  size: number
-  type: string
-}
-
-export interface PersistedFormData {
-  personalInfo: PersonalInfo
-  addressInfo: AddressInfo
-  employmentInfo: EmploymentInfo
-  loanDetails: LoanDetails
-  documents: {
-    idProof: null
-    addressProof: null
-    incomeProof: null
-    photo: null
-  }
-  signature: {
-    dataUrl: null
-  }
-}

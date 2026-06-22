@@ -1,14 +1,5 @@
 import { useFormStore } from '@/store/formStore'
-
-const STEPS = [
-  { label: 'Personal' },
-  { label: 'Address' },
-  { label: 'Employment' },
-  { label: 'Loan Details' },
-  { label: 'Documents' },
-  { label: 'Signature' },
-  { label: 'Review' },
-]
+import { STEP_TITLES } from '@/utils/constants'
 
 function CheckIcon() {
   return (
@@ -19,34 +10,53 @@ function CheckIcon() {
 }
 
 export default function StepIndicator() {
-  const currentStep = useFormStore((s) => s.currentStep)
-  const total = STEPS.length
-  const progressPercent = (currentStep / (total - 1)) * 100
+  const { currentStep, isStep6Active } = useFormStore()
+
+  const steps = STEP_TITLES.map((label, index) => ({
+    label,
+    isVisible: index !== 5 || isStep6Active(),
+  }))
+
+  const visibleSteps = steps.filter((s) => s.isVisible)
+  const total = visibleSteps.length
+  const visibleIndex = isStep6Active() ? currentStep : currentStep > 5 ? currentStep - 1 : currentStep
+  const progressPercent = total > 1 ? (visibleIndex / (total - 1)) * 100 : 0
 
   return (
     <div>
-      <div className="px-8 pt-7 pb-6 bg-slate-50 border-b border-slate-200">
-        <div className="step-indicator-track relative flex items-start justify-between">
-          {STEPS.map((step, index) => {
-            const isCompleted = index < currentStep
-            const isActive = index === currentStep
+      <div className="px-6 pt-6 pb-5 bg-slate-50 border-b border-slate-200">
+        <div className="relative flex items-start justify-between" role="list" aria-label="Application progress">
+          {visibleSteps.map((step, index) => {
+            const isCompleted = index < visibleIndex
+            const isActive = index === visibleIndex
+            const displayNum = index + 1
+
             return (
-              <div key={index} className="flex flex-col items-center gap-2 z-10 flex-1" aria-current={isActive ? 'step' : undefined}>
+              <div
+                key={step.label}
+                className="flex flex-col items-center gap-2 z-10 flex-1"
+                role="listitem"
+                aria-current={isActive ? 'step' : undefined}
+                aria-label={`Step ${displayNum} of ${total}: ${step.label}${isCompleted ? ' (completed)' : isActive ? ' (current)' : ''}`}
+              >
                 <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-150 relative z-10 ${
-                    isCompleted
-                      ? 'bg-green-600 border-green-600 text-white'
+                  className={`
+                    w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2
+                    transition-all duration-150 relative z-10
+                    ${isCompleted
+                      ? 'bg-accent border-accent text-white'
                       : isActive
-                      ? 'bg-blue-700 border-blue-700 text-white'
+                      ? 'bg-primary border-primary text-white'
                       : 'bg-white border-slate-200 text-slate-400'
-                  }`}
-                  style={isActive ? { boxShadow: '0 0 0 4px #dbeafe' } : undefined}
+                    }
+                  `}
+                  style={isActive ? { boxShadow: '0 0 0 4px rgba(31,78,121,0.15)' } : undefined}
                 >
-                  {isCompleted ? <CheckIcon /> : index + 1}
+                  {isCompleted ? <CheckIcon /> : displayNum}
                 </div>
                 <span
-                  className={`text-[11px] font-medium text-center leading-tight max-w-[72px] hidden sm:block ${
-                    isActive ? 'text-blue-700 font-semibold' : isCompleted ? 'text-green-600' : 'text-slate-400'
+                  className={`text-[10px] font-medium text-center leading-tight max-w-[64px] hidden sm:block ${
+                    isActive ? 'text-primary font-semibold' : isCompleted ? 'text-accent' : 'text-slate-400'
                   }`}
                 >
                   {step.label}
@@ -57,23 +67,26 @@ export default function StepIndicator() {
         </div>
       </div>
 
-      <div className="px-8 pb-4 bg-slate-50 border-b border-slate-200">
+      <div className="px-6 pb-4 bg-slate-50 border-b border-slate-200">
         <div className="flex justify-between items-center mb-2 text-xs text-slate-500">
           <span>
-            Step <strong className="text-blue-700">{currentStep + 1}</strong> of {total}
+            Step <strong className="text-primary">{visibleIndex + 1}</strong> of {total}
           </span>
           <span>
-            <strong className="text-blue-700">{Math.round(progressPercent)}%</strong> complete
+            <strong className="text-primary">{Math.round(progressPercent)}%</strong> complete
           </span>
         </div>
-        <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+        <div
+          className="h-1.5 bg-slate-200 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-valuenow={Math.round(progressPercent)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Application completion progress"
+        >
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${progressPercent}%`, background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)' }}
-            role="progressbar"
-            aria-valuenow={Math.round(progressPercent)}
-            aria-valuemin={0}
-            aria-valuemax={100}
+            style={{ width: `${progressPercent}%`, background: 'linear-gradient(90deg, #1F4E79, #27AE60)' }}
           />
         </div>
       </div>

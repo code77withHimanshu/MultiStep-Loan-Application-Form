@@ -1,287 +1,171 @@
 import { describe, it, expect } from 'vitest'
 import {
-  personalInfoSchema,
-  addressInfoSchema,
-  employmentInfoSchema,
-  loanDetailsSchema,
-  validateSchema,
-} from '@/schemas'
+  verhoeffChecksum,
+  validateAadhaar,
+  validatePAN,
+  validateGST,
+  validateMobile,
+  validateEmail,
+  validatePinCode,
+  getPANEntityType,
+} from '@/utils/validators'
 
-const validPersonal = {
-  firstName: 'Rahul',
-  lastName: 'Sharma',
-  email: 'rahul@example.com',
-  phone: '9876543210',
-  dateOfBirth: '1990-05-15',
-  gender: 'male' as const,
-  maritalStatus: 'single' as const,
-  panNumber: 'ABCDE1234F',
-  nationality: 'Indian' as const,
-}
-
-const validAddress = {
-  currentAddressLine1: '123 MG Road',
-  currentAddressLine2: 'Near Park',
-  currentCity: 'Bangalore',
-  currentState: 'Karnataka',
-  currentZip: '560001',
-  currentCountry: 'India',
-  sameAsPermanent: true,
-  permanentAddressLine1: '',
-  permanentAddressLine2: '',
-  permanentCity: '',
-  permanentState: '',
-  permanentZip: '',
-  permanentCountry: 'India',
-}
-
-describe('personalInfoSchema', () => {
-  it('passes for valid data', () => {
-    const errs = validateSchema(personalInfoSchema, validPersonal)
-    expect(errs).toEqual({})
+describe('verhoeffChecksum', () => {
+  it('returns true for valid Aadhaar numbers', () => {
+    // Known valid Aadhaar numbers with correct Verhoeff checksum
+    expect(verhoeffChecksum('499118665120')).toBe(true)
   })
 
-  it('requires firstName', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, firstName: '' })
-    expect(errs.firstName).toBeTruthy()
+  it('returns false for numbers with bad checksum', () => {
+    expect(verhoeffChecksum('123456789012')).toBe(false)
+    expect(verhoeffChecksum('000000000000')).toBe(false)
   })
 
-  it('requires minimum 2 chars for firstName', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, firstName: 'A' })
-    expect(errs.firstName).toBeTruthy()
-  })
-
-  it('rejects invalid chars in firstName', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, firstName: 'Ra123' })
-    expect(errs.firstName).toBeTruthy()
-  })
-
-  it('requires valid email', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, email: 'notanemail' })
-    expect(errs.email).toBeTruthy()
-  })
-
-  it('rejects empty email', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, email: '' })
-    expect(errs.email).toBeTruthy()
-  })
-
-  it('requires valid Indian mobile number', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, phone: '1234567890' })
-    expect(errs.phone).toBeTruthy()
-  })
-
-  it('rejects 9-digit phone', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, phone: '987654321' })
-    expect(errs.phone).toBeTruthy()
-  })
-
-  it('rejects underage applicant', () => {
-    const dob = new Date(); dob.setFullYear(dob.getFullYear() - 17)
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, dateOfBirth: dob.toISOString().split('T')[0] })
-    expect(errs.dateOfBirth).toContain('18')
-  })
-
-  it('rejects applicant over 70', () => {
-    const dob = new Date(); dob.setFullYear(dob.getFullYear() - 71)
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, dateOfBirth: dob.toISOString().split('T')[0] })
-    expect(errs.dateOfBirth).toContain('70')
-  })
-
-  it('requires gender', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, gender: '' as 'male' })
-    expect(errs.gender).toBeTruthy()
-  })
-
-  it('requires marital status', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, maritalStatus: '' as 'single' })
-    expect(errs.maritalStatus).toBeTruthy()
-  })
-
-  it('requires valid PAN format', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, panNumber: 'INVALID' })
-    expect(errs.panNumber).toBeTruthy()
-  })
-
-  it('accepts valid PAN ABCDE1234F', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, panNumber: 'ABCDE1234F' })
-    expect(errs.panNumber).toBeFalsy()
-  })
-
-  it('accepts female gender', () => {
-    const errs = validateSchema(personalInfoSchema, { ...validPersonal, gender: 'female' })
-    expect(errs).toEqual({})
+  it('single digit 0 has checksum 0', () => {
+    expect(verhoeffChecksum('0')).toBe(true)
   })
 })
 
-describe('addressInfoSchema', () => {
-  it('passes for valid data with sameAsPermanent = true', () => {
-    const errs = validateSchema(addressInfoSchema, validAddress)
-    expect(errs).toEqual({})
+describe('validateAadhaar', () => {
+  it('returns true for a valid 12-digit Aadhaar with correct checksum', () => {
+    expect(validateAadhaar('499118665120')).toBe(true)
   })
 
-  it('requires currentAddressLine1', () => {
-    const errs = validateSchema(addressInfoSchema, { ...validAddress, currentAddressLine1: '' })
-    expect(errs.currentAddressLine1).toBeTruthy()
+  it('returns false for less than 12 digits', () => {
+    expect(validateAadhaar('12345678901')).toBe(false)
   })
 
-  it('requires currentCity', () => {
-    const errs = validateSchema(addressInfoSchema, { ...validAddress, currentCity: '' })
-    expect(errs.currentCity).toBeTruthy()
+  it('returns false for more than 12 digits', () => {
+    expect(validateAadhaar('1234567890123')).toBe(false)
   })
 
-  it('requires valid 6-digit PIN', () => {
-    const errs = validateSchema(addressInfoSchema, { ...validAddress, currentZip: '12345' })
-    expect(errs.currentZip).toBeTruthy()
+  it('returns false for non-numeric characters', () => {
+    expect(validateAadhaar('12345678901A')).toBe(false)
   })
 
-  it('rejects non-numeric PIN', () => {
-    const errs = validateSchema(addressInfoSchema, { ...validAddress, currentZip: '5600A1' })
-    expect(errs.currentZip).toBeTruthy()
-  })
-
-  it('validates permanent address when sameAsPermanent is false', () => {
-    const data = { ...validAddress, sameAsPermanent: false, permanentAddressLine1: '' }
-    const errs = validateSchema(addressInfoSchema, data)
-    expect(errs.permanentAddressLine1).toBeTruthy()
-  })
-
-  it('passes when permanent address is fully filled', () => {
-    const data = {
-      ...validAddress,
-      sameAsPermanent: false,
-      permanentAddressLine1: '456 Brigade Road',
-      permanentCity: 'Bangalore',
-      permanentState: 'Karnataka',
-      permanentZip: '560001',
-    }
-    const errs = validateSchema(addressInfoSchema, data)
-    expect(errs).toEqual({})
+  it('returns false for all zeros', () => {
+    expect(validateAadhaar('000000000000')).toBe(false)
   })
 })
 
-describe('employmentInfoSchema', () => {
-  const validEmployment = {
-    employmentType: 'salaried' as const,
-    employerName: 'Acme Corp',
-    jobTitle: 'Software Engineer',
-    monthlyGrossIncome: '80000',
-    monthlyNetIncome: '65000',
-    workExperience: '5',
-    employmentStartDate: '2020-01-01',
-  }
-
-  it('passes for valid salaried data', () => {
-    const errs = validateSchema(employmentInfoSchema, validEmployment)
-    expect(errs).toEqual({})
+describe('validatePAN', () => {
+  it('accepts valid P-entity PAN for personal loan', () => {
+    expect(validatePAN('ABCPE1234F', 'personal')).toBe(true)
   })
 
-  it('requires employmentType', () => {
-    const errs = validateSchema(employmentInfoSchema, { ...validEmployment, employmentType: '' as 'salaried' })
-    expect(errs.employmentType).toBeTruthy()
+  it('accepts valid P-entity PAN for home loan', () => {
+    expect(validatePAN('ABCPE1234F', 'home')).toBe(true)
   })
 
-  it('requires employerName for non-retired', () => {
-    const errs = validateSchema(employmentInfoSchema, { ...validEmployment, employerName: '' })
-    expect(errs.employerName).toBeTruthy()
+  it('accepts P, C, F entity for business loan', () => {
+    expect(validatePAN('ABCPE1234F', 'business')).toBe(true)
+    expect(validatePAN('ABCCE1234F', 'business')).toBe(true)
+    expect(validatePAN('ABCFE1234F', 'business')).toBe(true)
   })
 
-  it('skips employer for retired type', () => {
-    const errs = validateSchema(employmentInfoSchema, {
-      ...validEmployment,
-      employmentType: 'retired',
-      employerName: '',
-      jobTitle: '',
-      employmentStartDate: '',
-    })
-    expect(errs.employerName).toBeFalsy()
+  it('rejects C-entity for personal loan', () => {
+    expect(validatePAN('ABCCE1234F', 'personal')).toBe(false)
   })
 
-  it('rejects net income exceeding gross income', () => {
-    const errs = validateSchema(employmentInfoSchema, {
-      ...validEmployment,
-      monthlyGrossIncome: '50000',
-      monthlyNetIncome: '60000',
-    })
-    expect(errs.monthlyNetIncome).toBeTruthy()
+  it('rejects C-entity for home loan', () => {
+    expect(validatePAN('ABCCE1234F', 'home')).toBe(false)
   })
 
-  it('rejects future employment start date', () => {
-    const future = new Date(); future.setFullYear(future.getFullYear() + 1)
-    const errs = validateSchema(employmentInfoSchema, {
-      ...validEmployment,
-      employmentStartDate: future.toISOString().split('T')[0],
-    })
-    expect(errs.employmentStartDate).toBeTruthy()
+  it('rejects invalid PAN format', () => {
+    expect(validatePAN('INVALID', 'personal')).toBe(false)
+    expect(validatePAN('12345', 'personal')).toBe(false)
+    expect(validatePAN('', 'personal')).toBe(false)
   })
 
-  it('rejects work experience over 50', () => {
-    const errs = validateSchema(employmentInfoSchema, { ...validEmployment, workExperience: '51' })
-    expect(errs.workExperience).toBeTruthy()
+  it('rejects lowercase PAN', () => {
+    expect(validatePAN('abcpe1234f', 'personal')).toBe(false)
   })
 
-  it('rejects negative income', () => {
-    const errs = validateSchema(employmentInfoSchema, { ...validEmployment, monthlyGrossIncome: '-1000' })
-    expect(errs.monthlyGrossIncome).toBeTruthy()
+  it('PAN must be exactly 10 characters', () => {
+    expect(validatePAN('ABCPE1234', 'personal')).toBe(false)
+    expect(validatePAN('ABCPE1234FX', 'personal')).toBe(false)
   })
 })
 
-describe('loanDetailsSchema', () => {
-  const validLoan = {
-    loanType: 'personal' as const,
-    loanAmount: '500000',
-    loanPurpose: 'Medical expenses',
-    tenure: '60',
-    preferredEMIDate: '5',
-  }
-
-  it('passes for valid personal loan data', () => {
-    const errs = validateSchema(loanDetailsSchema, validLoan)
-    expect(errs).toEqual({})
+describe('validateGST', () => {
+  it('accepts valid GST number', () => {
+    expect(validateGST('24ABCFC1234D1ZK')).toBe(true)
+    expect(validateGST('27AABCU9603R1ZN')).toBe(true)
   })
 
-  it('passes for home loan', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, loanType: 'home' })
-    expect(errs).toEqual({})
+  it('rejects invalid GST formats', () => {
+    expect(validateGST('INVALID')).toBe(false)
+    expect(validateGST('24ABCFC1234D1Z')).toBe(false)
+    expect(validateGST('')).toBe(false)
   })
 
-  it('passes for business loan', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, loanType: 'business' })
-    expect(errs).toEqual({})
+  it('requires state code as first 2 digits', () => {
+    expect(validateGST('AA24ABCFC1234D1ZK')).toBe(false)
+  })
+})
+
+describe('validateMobile', () => {
+  it('accepts valid 10-digit mobile starting with 6-9', () => {
+    expect(validateMobile('9876543210')).toBe(true)
+    expect(validateMobile('8765432109')).toBe(true)
+    expect(validateMobile('7654321098')).toBe(true)
+    expect(validateMobile('6543210987')).toBe(true)
   })
 
-  it('requires loan type', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, loanType: '' as 'personal' })
-    expect(errs.loanType).toBeTruthy()
+  it('rejects mobile starting with 0-5', () => {
+    expect(validateMobile('1234567890')).toBe(false)
+    expect(validateMobile('5234567890')).toBe(false)
   })
 
-  it('requires minimum loan amount of 50000', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, loanAmount: '40000' })
-    expect(errs.loanAmount).toBeTruthy()
+  it('rejects mobile with wrong length', () => {
+    expect(validateMobile('987654321')).toBe(false)
+    expect(validateMobile('98765432101')).toBe(false)
+  })
+})
+
+describe('validateEmail', () => {
+  it('accepts valid email addresses', () => {
+    expect(validateEmail('user@example.com')).toBe(true)
+    expect(validateEmail('test.user+tag@domain.co.in')).toBe(true)
   })
 
-  it('rejects loan amount over 5 crore', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, loanAmount: '60000000' })
-    expect(errs.loanAmount).toBeTruthy()
+  it('rejects invalid emails', () => {
+    expect(validateEmail('notanemail')).toBe(false)
+    expect(validateEmail('@domain.com')).toBe(false)
+    expect(validateEmail('user@')).toBe(false)
+    expect(validateEmail('')).toBe(false)
+  })
+})
+
+describe('validatePinCode', () => {
+  it('accepts valid 6-digit PIN codes', () => {
+    expect(validatePinCode('110001')).toBe(true)
+    expect(validatePinCode('560001')).toBe(true)
+    expect(validatePinCode('400001')).toBe(true)
   })
 
-  it('requires loan purpose', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, loanPurpose: '' })
-    expect(errs.loanPurpose).toBeTruthy()
+  it('rejects invalid PIN codes', () => {
+    expect(validatePinCode('12345')).toBe(false)
+    expect(validatePinCode('1234567')).toBe(false)
+    expect(validatePinCode('ABCDEF')).toBe(false)
+    expect(validatePinCode('')).toBe(false)
+  })
+})
+
+describe('getPANEntityType', () => {
+  it('returns Individual for P entity', () => {
+    expect(getPANEntityType('ABCPE1234F')).toBe('Individual')
   })
 
-  it('rejects tenure below 6 months', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, tenure: '5' })
-    expect(errs.tenure).toBeTruthy()
+  it('returns Company for C entity', () => {
+    expect(getPANEntityType('ABCCE1234F')).toBe('Company')
   })
 
-  it('rejects tenure above 360 months', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, tenure: '361' })
-    expect(errs.tenure).toBeTruthy()
+  it('returns Firm for F entity', () => {
+    expect(getPANEntityType('ABCFE1234F')).toBe('Firm')
   })
 
-  it('requires preferred EMI date', () => {
-    const errs = validateSchema(loanDetailsSchema, { ...validLoan, preferredEMIDate: '' })
-    expect(errs.preferredEMIDate).toBeTruthy()
+  it('returns empty string for invalid PAN', () => {
+    expect(getPANEntityType('INVALID')).toBe('')
   })
 })

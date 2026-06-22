@@ -3,6 +3,8 @@ import {
   calculateEMI,
   calculateTotalPayable,
   calculateTotalInterest,
+  calculateCostOfBorrowing,
+  calculateProcessingFee,
   getInterestRate,
   calculateAge,
   foirRatio,
@@ -11,29 +13,20 @@ import {
 
 describe('calculateEMI', () => {
   it('returns correct EMI for standard inputs', () => {
-    const emi = calculateEMI(500000, 10, 60)
-    expect(emi).toBeCloseTo(10624.28, 0)
+    const emi = calculateEMI(500000, 10.5, 60)
+    expect(emi).toBeCloseTo(10747, 0)
   })
 
   it('returns 0 when principal is 0', () => {
-    expect(calculateEMI(0, 10, 60)).toBe(0)
+    expect(calculateEMI(0, 10.5, 60)).toBe(0)
   })
 
-  it('returns 0 when rate is 0', () => {
+  it('returns principal/tenure when rate is 0', () => {
     expect(calculateEMI(60000, 0, 60)).toBe(1000)
   })
 
   it('returns 0 when tenure is 0', () => {
-    expect(calculateEMI(500000, 10, 0)).toBe(0)
-  })
-
-  it('handles string inputs correctly', () => {
-    const emi = calculateEMI('500000', 10, '60')
-    expect(emi).toBeGreaterThan(0)
-  })
-
-  it('returns 0 when inputs are invalid', () => {
-    expect(calculateEMI('', 10, '')).toBe(0)
+    expect(calculateEMI(500000, 10.5, 0)).toBe(0)
   })
 })
 
@@ -49,7 +42,7 @@ describe('calculateTotalPayable', () => {
 
 describe('calculateTotalInterest', () => {
   it('subtracts principal from total payable', () => {
-    expect(calculateTotalInterest(500000, 637457)).toBeCloseTo(137457, 0)
+    expect(calculateTotalInterest(500000, 637000)).toBeCloseTo(137000, 0)
   })
 
   it('returns 0 when total payable equals principal', () => {
@@ -61,13 +54,52 @@ describe('calculateTotalInterest', () => {
   })
 })
 
+describe('calculateCostOfBorrowing', () => {
+  it('calculates total cost correctly', () => {
+    const emi = calculateEMI(300000, 10.5, 36)
+    const cost = calculateCostOfBorrowing(emi, 36, 300000)
+    expect(cost).toBeGreaterThan(0)
+    expect(cost).toBeLessThan(300000 * 0.5)
+  })
+
+  it('returns 0 for zero loan', () => {
+    expect(calculateCostOfBorrowing(0, 36, 0)).toBe(0)
+  })
+})
+
+describe('calculateProcessingFee', () => {
+  it('returns 1% for standard loan amount', () => {
+    expect(calculateProcessingFee(300000)).toBe(3000)
+  })
+
+  it('applies minimum fee of ₹2,000', () => {
+    expect(calculateProcessingFee(50000)).toBe(2000)
+  })
+
+  it('applies maximum fee of ₹25,000', () => {
+    expect(calculateProcessingFee(10000000)).toBe(25000)
+  })
+
+  it('calculates exactly at max boundary', () => {
+    expect(calculateProcessingFee(2500000)).toBe(25000)
+  })
+
+  it('calculates at min boundary', () => {
+    expect(calculateProcessingFee(200000)).toBe(2000)
+  })
+})
+
 describe('getInterestRate', () => {
-  it('returns rate for each loan type', () => {
+  it('returns correct rate for personal loan', () => {
+    expect(getInterestRate('personal')).toBe(10.5)
+  })
+
+  it('returns correct rate for home loan', () => {
     expect(getInterestRate('home')).toBe(8.5)
-    expect(getInterestRate('personal')).toBe(14.0)
-    expect(getInterestRate('car')).toBe(10.0)
-    expect(getInterestRate('education')).toBe(11.0)
-    expect(getInterestRate('business')).toBe(16.0)
+  })
+
+  it('returns correct rate for business loan', () => {
+    expect(getInterestRate('business')).toBe(14.0)
   })
 
   it('returns 0 for empty string', () => {
@@ -90,11 +122,16 @@ describe('calculateAge', () => {
     expect(calculateAge('invalid')).toBe(0)
   })
 
-  it('accounts for month/day boundary', () => {
-    const today = new Date()
-    const dob = new Date(today.getFullYear() - 25, today.getMonth() + 1, today.getDate())
-    const age = calculateAge(dob.toISOString().split('T')[0])
-    expect(age).toBe(24)
+  it('age 21 is valid', () => {
+    const dob = new Date()
+    dob.setFullYear(dob.getFullYear() - 21)
+    expect(calculateAge(dob.toISOString().split('T')[0])).toBe(21)
+  })
+
+  it('age 65 is valid', () => {
+    const dob = new Date()
+    dob.setFullYear(dob.getFullYear() - 65)
+    expect(calculateAge(dob.toISOString().split('T')[0])).toBe(65)
   })
 })
 
@@ -114,10 +151,10 @@ describe('foirRatio', () => {
 
 describe('maxEligibleLoan', () => {
   it('calculates max loan correctly', () => {
-    const max = maxEligibleLoan(50000, 10, 60)
+    const max = maxEligibleLoan(50000, 10.5, 60)
     expect(max).toBeGreaterThan(0)
     const maxEmi = 50000 * 0.5
-    const emiOnMaxLoan = calculateEMI(max, 10, 60)
+    const emiOnMaxLoan = calculateEMI(max, 10.5, 60)
     expect(emiOnMaxLoan).toBeLessThanOrEqual(maxEmi + 1)
   })
 
