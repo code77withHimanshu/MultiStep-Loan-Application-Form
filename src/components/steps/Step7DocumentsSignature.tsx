@@ -157,15 +157,21 @@ export function Step7DocumentsSignature({ onNext, onPrev }: Step7Props) {
     setSigError(null)
   }
 
+  const handleSignatureEnd = useCallback(() => {
+    const sigCanvas = sigCanvasRef.current
+    if (sigCanvas && !sigCanvas.isEmpty()) {
+      setValue('eSignature', sigCanvas.toDataURL('image/png'), { shouldValidate: true })
+      setSigError(null)
+    }
+  }, [setValue])
+
   const onSubmit = (data: Step7Data) => {
     const sigCanvas = sigCanvasRef.current
     if (!sigCanvas || sigCanvas.isEmpty()) {
       setSigError('Please draw your signature')
       return
     }
-    const sigDataUrl = sigCanvas.toDataURL('image/png')
-    setValue('eSignature', sigDataUrl)
-    onNext({ ...data, eSignature: sigDataUrl, documents: docs })
+    onNext({ ...data, documents: docs })
   }
 
   return (
@@ -265,6 +271,7 @@ export function Step7DocumentsSignature({ onNext, onPrev }: Step7Props) {
           <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
             <SignatureCanvas
               ref={sigCanvasRef}
+              onEnd={handleSignatureEnd}
               canvasProps={{
                 className: 'w-full',
                 style: { width: '100%', height: '160px', touchAction: 'none' },
