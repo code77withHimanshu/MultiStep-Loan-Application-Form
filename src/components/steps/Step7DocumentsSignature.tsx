@@ -275,7 +275,6 @@ export function Step7DocumentsSignature({ onNext, onPrev }: Step7Props) {
               canvasProps={{
                 className: 'w-full',
                 style: { width: '100%', height: '160px', touchAction: 'none' },
-                'data-testid': 'signature-canvas',
               }}
               penColor="#1F4E79"
             />

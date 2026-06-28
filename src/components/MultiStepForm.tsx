@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect } from 'react'
 import { useFormStore } from '@/store/formStore'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useFormPersistence } from '@/hooks/useFormPersistence'
@@ -20,7 +20,6 @@ import type { Step3Data } from '@/schemas/step3Schema'
 import type { Step4Data } from '@/schemas/step4Schema'
 import type { Step5Data } from '@/schemas/step5Schema'
 import type { Step6Data } from '@/schemas/step6Schema'
-import type { Step8Data } from '@/schemas/step8Schema'
 import type { ApplicationFormData, LoanType, DocumentFile } from '@/types'
 
 function ResumeModal({

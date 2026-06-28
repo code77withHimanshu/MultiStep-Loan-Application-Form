@@ -3,18 +3,26 @@ import type {
   ApplicationFormData,
   LoanType,
   SubmissionResponse,
+  EligibilityResult,
 } from '@/types'
-import { TOTAL_STEPS, CO_APPLICANT_THRESHOLDS, STORAGE_KEY_PREFIX } from '@/utils/constants'
+import { TOTAL_STEPS, STORAGE_KEY_PREFIX } from '@/utils/constants'
 
-const initialFormData: ApplicationFormData = {
+export const initialFormData: ApplicationFormData = {
   loanBasicInfo: {},
-  personalInfo: {},
+  personalInfo: {
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    panNumber: '',
+  },
   kycInfo: {},
   addressInfo: {},
   employmentInfo: {},
   coApplicantInfo: {},
   documentsAndSignature: {},
   consentInfo: {},
+  loanDetails: {},
 }
 
 interface FormState {
@@ -24,6 +32,8 @@ interface FormState {
   submissionResult: SubmissionResponse | null
   hasSavedData: boolean
   savedLoanType: LoanType | null
+  eligibility: EligibilityResult | null
+  savedAt: number | null
 }
 
 interface FormActions {
@@ -37,6 +47,7 @@ interface FormActions {
   setSubmitted: (submitted: boolean, result?: SubmissionResponse) => void
   resetForm: () => void
   setHasSavedData: (hasSaved: boolean, loanType?: LoanType | null) => void
+  setEligibility: (result: EligibilityResult | null) => void
   isStep6Active: () => boolean
   getEffectiveTotalSteps: () => number
 }
@@ -50,30 +61,22 @@ const initialState: FormState = {
   submissionResult: null,
   hasSavedData: false,
   savedLoanType: null,
+  eligibility: null,
+  savedAt: null,
 }
 
 export const useFormStore = create<FormStore>()((set, get) => ({
   ...initialState,
 
   nextStep: () => {
-    const { currentStep, isStep6Active, getEffectiveTotalSteps } = get()
+    const { currentStep, getEffectiveTotalSteps } = get()
     const maxStep = getEffectiveTotalSteps() - 1
-    // Skip step index 5 (Co-Applicant, 0-indexed) if not active
-    if (currentStep === 4 && !isStep6Active()) {
-      set({ currentStep: Math.min(6, maxStep) })
-    } else {
-      set({ currentStep: Math.min(currentStep + 1, maxStep) })
-    }
+    set({ currentStep: Math.min(currentStep + 1, maxStep) })
   },
 
   prevStep: () => {
-    const { currentStep, isStep6Active } = get()
-    // Skip step index 5 when going back if not active
-    if (currentStep === 6 && !isStep6Active()) {
-      set({ currentStep: Math.max(4, 0) })
-    } else {
-      set({ currentStep: Math.max(currentStep - 1, 0) })
-    }
+    const { currentStep } = get()
+    set({ currentStep: Math.max(currentStep - 1, 0) })
   },
 
   goToStep: (step: number) =>
@@ -109,12 +112,22 @@ export const useFormStore = create<FormStore>()((set, get) => ({
   setHasSavedData: (hasSaved: boolean, loanType?: LoanType | null) =>
     set({ hasSavedData: hasSaved, savedLoanType: loanType ?? null }),
 
+  setEligibility: (result: EligibilityResult | null) =>
+    set({ eligibility: result }),
+
   isStep6Active: (): boolean => {
     const { formData } = get()
-    const { loanType, loanAmount } = formData.loanBasicInfo ?? {}
+    const loanType =
+      formData.loanBasicInfo?.loanType ??
+      (formData.loanDetails?.loanType as LoanType | undefined)
+    const rawAmount =
+      formData.loanBasicInfo?.loanAmount ?? formData.loanDetails?.loanAmount
+    const loanAmount =
+      typeof rawAmount === 'string' ? parseFloat(rawAmount) : (rawAmount ?? 0)
     if (!loanType || !loanAmount) return false
     if (loanType === 'home') return true
-    const threshold = CO_APPLICANT_THRESHOLDS[loanType]
+    const { CO_APPLICANT_THRESHOLDS } = require('@/utils/constants') as typeof import('@/utils/constants')
+    const threshold = CO_APPLICANT_THRESHOLDS[loanType as LoanType]
     if (threshold === null) return true
     return loanAmount > threshold
   },

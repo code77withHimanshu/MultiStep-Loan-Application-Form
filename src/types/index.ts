@@ -1,5 +1,6 @@
 export type LoanType = 'personal' | 'home' | 'business'
-export type EmploymentType = 'salaried' | 'self_employed' | 'business_owner'
+export type ExtendedLoanType = LoanType | 'car' | 'education'
+export type EmploymentType = 'salaried' | 'self_employed' | 'business_owner' | 'retired'
 export type Gender = 'male' | 'female' | 'other'
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed'
 export type ResidenceType = 'owned' | 'rented' | 'company' | 'family'
@@ -14,15 +15,20 @@ export interface LoanBasicInfo {
 }
 
 export interface PersonalInfo {
-  fullName: string
-  dateOfBirth: string
-  gender: Gender
-  maritalStatus: MaritalStatus
-  fatherName: string
-  motherName: string
-  email: string
-  mobileNumber: string
+  fullName?: string
+  firstName?: string
+  lastName?: string
+  dateOfBirth?: string
+  gender?: Gender
+  maritalStatus?: MaritalStatus
+  fatherName?: string
+  motherName?: string
+  email?: string
+  mobileNumber?: string
+  phone?: string
   alternateMobile?: string
+  panNumber?: string
+  nationality?: string
 }
 
 export interface KYCInfo {
@@ -36,16 +42,17 @@ export interface KYCInfo {
 }
 
 export interface AddressInfo {
-  currentAddressLine1: string
+  currentAddressLine1?: string
   currentAddressLine2?: string
-  currentPinCode: string
-  currentCity: string
-  currentState: string
+  currentPinCode?: string
+  currentZip?: string
+  currentCity?: string
+  currentState?: string
   currentPostOffice?: string
-  currentResidenceType: ResidenceType
+  currentResidenceType?: ResidenceType
   currentRentAmount?: number
-  yearsAtCurrentAddress: number
-  sameAsPermanent: boolean
+  yearsAtCurrentAddress?: number
+  sameAsPermanent?: boolean
   permanentAddressLine1?: string
   permanentAddressLine2?: string
   permanentPinCode?: string
@@ -88,6 +95,35 @@ export type EmploymentInfo =
   | EmploymentInfoSelfEmployed
   | EmploymentInfoBusinessOwner
 
+export interface EmploymentData {
+  employmentType?: string
+  employerName?: string
+  jobTitle?: string
+  monthlyGrossIncome?: string | number
+  monthlyNetIncome?: string | number
+  workExperience?: string | number
+  employmentStartDate?: string
+  companyName?: string
+  designation?: string
+  monthlyNetSalary?: number
+  yearsOfExperience?: number
+  businessName?: string
+  businessType?: string
+  annualTurnover?: number
+  yearsInBusiness?: number
+  monthlyIncome?: number
+  gstNumber?: string
+  officeAddress?: string
+}
+
+export interface LoanDetailsInfo {
+  loanType?: ExtendedLoanType
+  loanAmount?: string | number
+  loanPurpose?: string
+  tenure?: string | number
+  preferredEMIDate?: string
+}
+
 export interface CoApplicantInfo {
   coApplicantName: string
   relationship: CoApplicantRelationship
@@ -117,6 +153,10 @@ export interface DocumentsAndSignature {
   gstReturns?: DocumentFile[]
   photograph?: DocumentFile | null
   eSignature?: string | null
+  idProof?: DocumentFile | null
+  addressProof?: DocumentFile | null
+  incomeProof?: DocumentFile | null
+  photo?: DocumentFile | null
 }
 
 export interface ConsentInfo {
@@ -131,10 +171,21 @@ export interface ApplicationFormData {
   personalInfo: Partial<PersonalInfo>
   kycInfo: Partial<KYCInfo>
   addressInfo: Partial<AddressInfo>
-  employmentInfo: Partial<EmploymentInfo>
+  employmentInfo: Partial<EmploymentData>
   coApplicantInfo: Partial<CoApplicantInfo>
   documentsAndSignature: Partial<DocumentsAndSignature>
   consentInfo: Partial<ConsentInfo>
+  loanDetails?: Partial<LoanDetailsInfo>
+}
+
+export interface EligibilityResult {
+  eligible: boolean
+  verdict: string
+  creditScore: number
+  maxLoanAmount: number
+  suggestedInterestRate: number
+  emiToIncomeRatio: number
+  reasons: string[]
 }
 
 export interface SubmissionResponse {
@@ -142,8 +193,8 @@ export interface SubmissionResponse {
   referenceNumber: string
   status: 'submitted' | 'under_review'
   submittedAt: string
-  loanType: LoanType
-  loanAmount: number
+  loanType?: LoanType
+  loanAmount?: number
 }
 
 export interface PinCodeEntry {

@@ -1,5 +1,4 @@
 import { forwardRef } from 'react'
-import type { InputHTMLAttributes } from 'react'
 
 interface Option {
   value: string
